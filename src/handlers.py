@@ -5,6 +5,8 @@ from loguru import logger
 
 from src import audio, gpt_query
 from src.button import OFF_IMAGE, ON_IMAGE
+import os
+from src.config import OUTPUT_TRANSCRIPT_FILE_NAME, OUTPUT_FILE_NAME
 
 
 def handle_events(window: sg.Window, event: str, values: Dict[str, Any]) -> None:
@@ -23,6 +25,8 @@ def handle_events(window: sg.Window, event: str, values: Dict[str, Any]) -> None
             recording_event(window)
         elif event in ("a", "A", "-ANALYZE_BUTTON-"):
             transcribe_event(window)
+        elif event in ("c", "C", "-CLEAR_BUTTON-"):
+            clear_history(window)
 
     # If the user is focused on the position input
     if event[:6] in ("Return", "Escape"):
@@ -122,3 +126,21 @@ def answer_events(window: sg.Window, values: Dict[str, Any]) -> None:
         ),
         "-FULL_ANSWER-",
     )
+
+def clear_history(window: sg.Window) -> None:
+    """
+    Clear the history.
+
+    Args:
+        window (sg.Window): The window element.
+    """
+    logger.debug("Clearing history...")
+    # delete OUTPUT_TRANSCRIPT_FILE_NAME and OUTPUT_FILE_NAME
+    if os.path.exists(OUTPUT_TRANSCRIPT_FILE_NAME):
+        os.remove(OUTPUT_TRANSCRIPT_FILE_NAME)
+    if os.path.exists(OUTPUT_FILE_NAME):
+        os.remove(OUTPUT_FILE_NAME)
+    window["-TRANSCRIBED_TEXT-"].update("")
+    window["-QUICK_ANSWER-"].update("")
+    window["-FULL_ANSWER-"].update("")
+    logger.debug(f"History cleared. {OUTPUT_TRANSCRIPT_FILE_NAME} and {OUTPUT_FILE_NAME} deleted.")

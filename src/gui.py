@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, Union
 import FreeSimpleGUI as sg
 
 from src.button import GREY_BUTTON, OFF_IMAGE
-from src.config import APPLICATION_WIDTH, DEFAULT_MODEL, MODELS, THEME
+from src.config import APPLICATION_WIDTH, DEFAULT_MODEL, MODELS, THEME, DEFAULT_POSITION
 
 
 class BtnInfo:
@@ -61,7 +61,8 @@ def create_text_area(
     size: Optional[Tuple[int, int]] = None,
     key: str = "",
     text_color: str = None,
-) -> sg.Text:
+    scrollable: bool = False,
+) -> Union[sg.Text, sg.Multiline]:
     """
     Create a text area element with the given parameters.
 
@@ -70,19 +71,33 @@ def create_text_area(
         size (Optional[Tuple[int, int]], optional): The size of the text area. Defaults to None.
         key (str, optional): The key of the text area. Defaults to "".
         text_color (str, optional): The color of the text. Defaults to None.
+        scrollable (bool, optional): Whether the text area should be scrollable. Defaults to False.
 
     Returns:
-        sg.Text: The text area element.
+        Union[sg.Text, sg.Multiline]: The text area element.
     """
-    return sg.Text(
-        text=text,
-        size=size,
-        key=key,
-        background_color=sg.theme_background_color(),
-        text_color=text_color,
-        expand_x=True,
-        expand_y=True,
-    )
+    if scrollable:
+        return sg.Multiline(
+            text,
+            size=size,
+            key=key,
+            background_color=sg.theme_background_color(),
+            text_color=text_color,
+            disabled=True,
+            autoscroll=True,
+            expand_x=True,
+            expand_y=True,
+        )
+    else:
+        return sg.Text(
+            text=text,
+            size=size,
+            key=key,
+            background_color=sg.theme_background_color(),
+            text_color=text_color,
+            expand_x=True,
+            expand_y=True,
+        )
 
 
 def name(name: str) -> sg.Text:
@@ -179,9 +194,16 @@ def build_layout() -> (
         key="-CLOSE_BUTTON-",
         subsample=2,
     )
+    clear_button: sg.Button = create_button(
+        image_data=GREY_BUTTON,
+        text="Clear",
+        tooltip="Clear history",
+        key="-CLEAR_BUTTON-",
+        subsample=2,
+    )
 
-    transcribed_text: sg.Text = create_text_area(
-        size=(APPLICATION_WIDTH, 3), key="-TRANSCRIBED_TEXT-", text_color="white"
+    transcribed_text = create_text_area(
+        size=(APPLICATION_WIDTH, 40), key="-TRANSCRIBED_TEXT-", text_color="white", scrollable=True
     )
     quick_answer: sg.Text = create_text_area(
         size=(APPLICATION_WIDTH, 7), key="-QUICK_ANSWER-", text_color="white"
@@ -205,7 +227,7 @@ def build_layout() -> (
         tooltip="Select the model to use",
     )
     position = sg.Input(
-        default_text="Python Developer",
+        default_text=DEFAULT_POSITION,
         k="-POSITION_INPUT-",
         s=30,
         tooltip="Enter the position you are applying for",
@@ -246,7 +268,7 @@ def build_layout() -> (
     )
     close_button_frame = create_frame(
         title="",
-        layout=[[close_button]],
+        layout=[[close_button, clear_button]],
         key="-CLOSE_BUTTON_FRAME-",
     )
 

@@ -37,9 +37,11 @@ Hack Interview application is a tool designed to assist in job interviews using 
    pip install -r requirements.txt
    ```
 
-3. **BlackHole**: If using MacOS, install [BlackHole](https://github.com/ExistentialAudio/BlackHole) and set up a [Multi Output Device](https://github.com/ExistentialAudio/BlackHole/wiki/Multi-Output-Device)
+3. **BlackHole**: If using MacOS, install [BlackHole](https://github.com/ExistentialAudio/BlackHole) and set up a [Multi Output Device](https://github.com/ExistentialAudio/BlackHole/wiki/Multi-Output-Device). If you don't know which version you need to install, just install BlackHole2ch.
 
-4. **Environment Setup**:
+4. **Whisper.cpp**: Download https://github.com/ggml-org/whisper.cpp and compile. You also need to download Whisper models. For Mac user, please make sure you compile it Whisper with Core ML. YOu also need to generate Core ML model from downloaded model. Please change config.py to point WHISPER_CLI_PATH/WHISPER_MODEL_PATH to right path.
+
+5. **Environment Setup**:
    - Add your OpenAI API key to the `.env` file. If you don't have one, you can get it [here](https://platform.openai.com/api-keys).
 
 ## Usage
@@ -47,7 +49,7 @@ Hack Interview application is a tool designed to assist in job interviews using 
 - **Starting the Application**: Run `python main.py` to launch the GUI.
 - *(optional)* **Setup**: You can choose the OpenAI model to use for response generation and the position you are being interviewed for. The default settings are set in the `src/config.py` file.
 - **Recording**: Press `R` or click the big red toggle button to start/stop audio recording. It will create a `recording.wav` file in the project directory.
-- **Transcription and Response Generation**: Press `A` or click the 'Analyze' button to transcribe the recorded audio and generate answers.
+- **Transcription and Response Generation**: Press `A` or click the 'Analyze' button to transcribe the recorded audio and generate answers. Please notice it use append mode to add new transcription unless you click clear button to clear the history.
 - **Viewing Responses**: Responses are displayed in the GUI, offering both a quick and detailed answer.
 
 ## Contributions

@@ -1,8 +1,9 @@
 from dotenv import load_dotenv
 from loguru import logger
 from openai import ChatCompletion, OpenAI
-
-from src.config import DEFAULT_MODEL, DEFAULT_POSITION, OUTPUT_FILE_NAME
+import subprocess
+import os
+from src.config import DEFAULT_MODEL, DEFAULT_POSITION, OUTPUT_FILE_NAME, WHISPER_CLI_PATH, WHISPER_MODEL_PATH
 
 SYS_PREFIX: str = "You are interviewing for a "
 SYS_SUFFIX: str = """ position.
@@ -16,8 +17,31 @@ load_dotenv()
 
 client: OpenAI = OpenAI()
 
+def transcribe_audio_with_whisper(path_to_file: str = OUTPUT_FILE_NAME) -> str:
+    """
+    Use whisper to transcribe the audio file. Transcribe cmd is 
+    whisper.cpp/whisper-cli -m whisper.cpp/models/ggml-base.en.bin -f path_to_file --output-txt
+    It will generate a transcription text file with the same name as the audio file, but with postfix .txt.
+    After transcribing, read the transcription text file and return the transcription.
+    If the transcription file exists, append the transcription to the file.
+    """
+    if os.path.exists(f"{path_to_file}.txt"):
+        with open(f"{path_to_file}.txt", "r") as file:
+            transcription: str = file.read()
+        logger.debug(f"Transcription file exists: f{path_to_file}.txt")
+    else:
+        transcription: str = ""
 
-def transcribe_audio(path_to_file: str = OUTPUT_FILE_NAME) -> str:
+    transcribe_cmd: str = f"{WHISPER_CLI_PATH} -m {WHISPER_MODEL_PATH} -f {path_to_file} --output-txt"
+    transcribe_cmd_output: str = subprocess.run(transcribe_cmd, shell=True, capture_output=True, text=True)
+    logger.debug(f"Transcribe cmd output: {transcribe_cmd_output}")
+    with open(f"{path_to_file}.txt", "r") as file:
+        transcription += file.read()
+    logger.debug("Audio transcribed.")
+    print("Transcription:", transcription)
+    return transcription
+
+def transcribe_audio_with_openai(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     """
     Transcribe audio from a file using the OpenAI Whisper API.
 
@@ -43,6 +67,8 @@ def transcribe_audio(path_to_file: str = OUTPUT_FILE_NAME) -> str:
 
     return transcript
 
+def transcribe_audio(path_to_file: str = OUTPUT_FILE_NAME) -> str:
+    return transcribe_audio_with_whisper(path_to_file)
 
 def generate_answer(
     transcript: str,
