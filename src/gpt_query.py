@@ -3,7 +3,8 @@ from loguru import logger
 from openai import ChatCompletion, OpenAI
 import subprocess
 import os
-from src.config import DEFAULT_MODEL, DEFAULT_POSITION, OUTPUT_FILE_NAME, WHISPER_CLI_PATH, WHISPER_MODEL_PATH
+from src.config import DEFAULT_MODEL, DEFAULT_POSITION, OUTPUT_FILE_NAME, WHISPER_CLI_PATH, WHISPER_STREAM_PATH, WHISPER_MODEL_PATH, LIVE_OUTPUT_TRANSCRIPT_FILE_NAME
+import tiktoken
 
 SYS_PREFIX: str = "You are interviewing for a "
 SYS_SUFFIX: str = """ position.
@@ -41,6 +42,28 @@ def transcribe_audio_with_whisper(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     print("Transcription:", transcription)
     return transcription
 
+
+def transcribe_live_audio_with_whisper(path_to_file: str = LIVE_OUTPUT_TRANSCRIPT_FILE_NAME):
+    """
+    Transcribe live audio with whisper.cpp.
+    whisper.cpp/whisper-stream -m WHISPER_MODEL_PATH -t 6 --step 0 --length 30000 -vth 0.8 -c 0 -f {LIVE_OUTPUT_TRANSCRIPT_FILE_NAME}
+    It will generate a transcription text file LIVE_OUTPUT_TRANSCRIPT_FILE_NAME.
+    As it's live transcription, above command will run forever, we need to read transcript file to get the transcription 
+    New transcription can be detected by output pipe change of the command. Ideally it should send a signal for new transcription.
+    """
+    transcribe_cmd: str = f"{WHISPER_STREAM_PATH} -m {WHISPER_MODEL_PATH} -t 6 --step 0 --length 30000 -vth 0.8 -c 0 -f {LIVE_OUTPUT_TRANSCRIPT_FILE_NAME}"
+    # run the command and print command output as a stream
+    process = subprocess.Popen(transcribe_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    while True:
+        output = process.stdout.readline()
+        if output == b"" and process.stdout.at_eof():
+            break
+        if output:
+            # logger.debug(output.decode(), end="")
+            pass
+    process.wait()
+
+
 def transcribe_audio_with_openai(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     """
     Transcribe audio from a file using the OpenAI Whisper API.
@@ -70,6 +93,40 @@ def transcribe_audio_with_openai(path_to_file: str = OUTPUT_FILE_NAME) -> str:
 def transcribe_audio(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     return transcribe_audio_with_whisper(path_to_file)
 
+def truncate_to_fit_context(
+    text: str,
+    context_window: int = 1_047_576,
+    reserved_tokens: int = 200,
+    model: str = "gpt-4.1"
+) -> str:
+    """
+    Truncate `text` so that its token length ≤ context_window - reserved_tokens.
+
+    Args:
+        text:           The input string to truncate.
+        context_window: Total context window size of the model.
+        reserved_tokens: Number of tokens to reserve (e.g. for system prompts).
+        model:          The OpenAI model name to choose the token encoding.
+
+    Returns:
+        A truncated string whose token count fits within the available window.
+    """
+    # load the encoding for the specified model (falls back to cl100k_base)
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")
+
+    max_user_tokens = context_window - reserved_tokens
+    tokens = enc.encode(text)
+
+    if len(tokens) <= max_user_tokens:
+        return text
+
+    # keep only the first max_user_tokens tokens
+    truncated = tokens[:max_user_tokens]
+    return enc.decode(truncated)
+
 def generate_answer(
     transcript: str,
     short_answer: bool = True,
@@ -90,6 +147,8 @@ def generate_answer(
     Returns:
         str: The generated answer.
     """
+    # truncate transcript to 10000 characters
+    safe_transcript = truncate_to_fit_context(transcript)
     # Generate system prompt
     system_prompt: str = SYS_PREFIX + position + SYS_SUFFIX
     if short_answer:
@@ -104,7 +163,7 @@ def generate_answer(
             temperature=temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": transcript},
+                {"role": "user", "content": safe_transcript},
             ],
         )
     except Exception as error:

@@ -6,8 +6,8 @@ from loguru import logger
 from src import audio, gpt_query
 from src.button import OFF_IMAGE, ON_IMAGE
 import os
-from src.config import OUTPUT_TRANSCRIPT_FILE_NAME, OUTPUT_FILE_NAME
-
+from src.config import OUTPUT_TRANSCRIPT_FILE_NAME, OUTPUT_FILE_NAME, LIVE_OUTPUT_TRANSCRIPT_FILE_NAME
+import time
 
 def handle_events(window: sg.Window, event: str, values: Dict[str, Any]) -> None:
     """
@@ -63,6 +63,26 @@ def recording_event(window: sg.Window) -> None:
     # Record audio
     if button.metadata.state:
         window.perform_long_operation(lambda: audio.record(button), "-RECORDED-")
+        window.perform_long_operation(gpt_query.transcribe_live_audio_with_whisper, "-RECORDED-")
+        
+        # Start periodic update of transcript text
+        def update_transcript():
+            last_content = ""
+            while button.metadata.state:
+                try:
+                    if os.path.exists(LIVE_OUTPUT_TRANSCRIPT_FILE_NAME):
+                        with open(LIVE_OUTPUT_TRANSCRIPT_FILE_NAME, 'r') as f:
+                            transcript = f.read()
+                            if transcript != last_content:
+                                logger.debug(f"Transcript: {transcript}")
+                                window["-TRANSCRIBED_TEXT-"].update(transcript, append=False)
+                                window["-TRANSCRIBED_TEXT-"].set_vscroll_position(1.0)  # Scroll to bottom
+                                last_content = transcript
+                except Exception as e:
+                    logger.error(f"Error reading transcript file: {e}")
+                time.sleep(0.1)
+        
+        window.perform_long_operation(update_transcript, "-UPDATE_TRANSCRIPT-")
 
 
 def transcribe_event(window: sg.Window) -> None:
@@ -76,7 +96,12 @@ def transcribe_event(window: sg.Window) -> None:
     transcribed_text.update("Transcribing audio...")
 
     # Transcribe audio
-    window.perform_long_operation(gpt_query.transcribe_audio, "-WHISPER-")
+    # window.perform_long_operation(gpt_query.transcribe_audio, "-WHISPER-")
+    def get_live_transcript():
+        with open(LIVE_OUTPUT_TRANSCRIPT_FILE_NAME, 'r') as f:
+            transcript = f.read()
+            return transcript
+    window.perform_long_operation(get_live_transcript, "-WHISPER-")
 
 
 def answer_events(window: sg.Window, values: Dict[str, Any]) -> None:
@@ -140,6 +165,8 @@ def clear_history(window: sg.Window) -> None:
         os.remove(OUTPUT_TRANSCRIPT_FILE_NAME)
     if os.path.exists(OUTPUT_FILE_NAME):
         os.remove(OUTPUT_FILE_NAME)
+    if os.path.exists(LIVE_OUTPUT_TRANSCRIPT_FILE_NAME):
+        os.remove(LIVE_OUTPUT_TRANSCRIPT_FILE_NAME)
     window["-TRANSCRIBED_TEXT-"].update("")
     window["-QUICK_ANSWER-"].update("")
     window["-FULL_ANSWER-"].update("")
