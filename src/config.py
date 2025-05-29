@@ -1,5 +1,6 @@
 APPLICATION_WIDTH = 85
 THEME = "DarkGray12"
+TRANSPARENCY = 0.65  # 0.0 is fully transparent, 1.0 is opaque
 
 OUTPUT_FILE_NAME = "record.wav"
 OUTPUT_TRANSCRIPT_FILE_NAME = "record.wav.txt"

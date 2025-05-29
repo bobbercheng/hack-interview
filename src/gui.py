@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, Union
 import FreeSimpleGUI as sg
 
 from src.button import GREY_BUTTON, OFF_IMAGE
-from src.config import APPLICATION_WIDTH, DEFAULT_MODEL, MODELS, THEME, DEFAULT_POSITION
+from src.config import APPLICATION_WIDTH, DEFAULT_MODEL, MODELS, THEME, DEFAULT_POSITION, TRANSPARENCY
 
 
 class BtnInfo:
@@ -311,10 +311,13 @@ def initialize_window() -> sg.Window:
         List[Union[sg.Text, sg.Button, sg.Frame, sg.Combo, sg.Input]]
     ] = build_layout()
 
-    return sg.Window(
+    window = sg.Window(
         "Interview",
         layout,
         return_keyboard_events=True,
         use_default_focus=False,
         resizable=True,
+        finalize=True,
     )
+    window.set_alpha(TRANSPARENCY)
+    return window
