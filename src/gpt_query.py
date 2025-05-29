@@ -42,6 +42,8 @@ def transcribe_audio_with_whisper(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     print("Transcription:", transcription)
     return transcription
 
+# global variants
+live_process: subprocess.Popen = None
 
 def transcribe_live_audio_with_whisper(path_to_file: str = LIVE_OUTPUT_TRANSCRIPT_FILE_NAME):
     """
@@ -51,18 +53,35 @@ def transcribe_live_audio_with_whisper(path_to_file: str = LIVE_OUTPUT_TRANSCRIP
     As it's live transcription, above command will run forever, we need to read transcript file to get the transcription 
     New transcription can be detected by output pipe change of the command. Ideally it should send a signal for new transcription.
     """
+    global live_process
+    if live_process is not None:
+        return
     transcribe_cmd: str = f"{WHISPER_STREAM_PATH} -m {WHISPER_MODEL_PATH} -t 6 --step 0 --length 30000 -vth 0.8 -c 0 -f {LIVE_OUTPUT_TRANSCRIPT_FILE_NAME}"
+    logger.debug(f"Running live transcribe with whisper: {transcribe_cmd}...")
     # run the command and print command output as a stream
-    process = subprocess.Popen(transcribe_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    live_process = subprocess.Popen(transcribe_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while True:
-        output = process.stdout.readline()
-        if output == b"" and process.stdout.at_eof():
+        try:
+            output = live_process.stdout.readline()
+            if output == b"" and live_process.stdout.at_eof():
+                break
+            if output:
+                # logger.debug(output.decode(), end="")
+                pass
+        except Exception as error:
+            logger.error(f"Can't read out of live transcribe: {error}")
             break
-        if output:
-            # logger.debug(output.decode(), end="")
-            pass
-    process.wait()
+    if live_process is not None:
+        live_process.wait()
 
+def stop_transcribe_live():
+    global live_process
+    if live_process is None:
+        return
+    # Terminate process
+    logger.debug(f"Terminating live transcribe with whisper...")
+    live_process.terminate()
+    live_process = None
 
 def transcribe_audio_with_openai(path_to_file: str = OUTPUT_FILE_NAME) -> str:
     """

@@ -83,6 +83,8 @@ def recording_event(window: sg.Window) -> None:
                 time.sleep(0.1)
         
         window.perform_long_operation(update_transcript, "-UPDATE_TRANSCRIPT-")
+    else:
+        gpt_query.stop_transcribe_live()
 
 
 def transcribe_event(window: sg.Window) -> None:
